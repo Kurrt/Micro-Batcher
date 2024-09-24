@@ -12,6 +12,12 @@ Micro Batcher is a TypeScript library designed to handle job processing in batch
 - Specify batch size and/or processing frequency.
 - Supports promise-based job processing, a promise is immediately returned from the batcher, which will be resolved or rejected when the job is executed.
 
+## 📦 Install
+
+```bash
+npm i git+https://github.com/kurrt/micro-batcher.git
+```
+
 ## ⚙️ Requirements
 
 ### 🛠️ BYO `BatchProcessor`
