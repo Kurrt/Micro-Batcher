@@ -101,7 +101,7 @@ describe('Batcher', () => {
   });
 
   test('should handle errors in job processing without affecting others', async () => {
-    const batcher = createBatcher(2);
+    const batcher = createBatcher(2); // Batch size 2
 
     const failingJob: Job = () => {
       throw new Error('Job failed');
@@ -118,7 +118,7 @@ describe('Batcher', () => {
   });
 
   test('should resolve shutdown only after all jobs are processed', async () => {
-    const batcher = createBatcher(2);
+    const batcher = createBatcher(2); // Batch size 2
 
     batcher.submit(job1);
     batcher.submit(job2);
@@ -147,7 +147,7 @@ describe('Batcher', () => {
   });
 
   test('should handle multiple shutdown calls gracefully', async () => {
-    const batcher = createBatcher(2);
+    const batcher = createBatcher(2); // Batch size 2
 
     batcher.submit(job1);
     batcher.submit(job2);

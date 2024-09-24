@@ -76,7 +76,7 @@ console.log(result); // Outputs: 'My cool result'
 
 ### 🛑 `shutdown(): Promise<void>`
 
-The `shutdown` method gracefully stops the batcher from accepting new jobs and processes any remaining jobs in the queue. It returns a promise that resolves once all jobs have been processed, ensuring that no job is left unfinished.
+The `shutdown` method gracefully stops the batcher from accepting new jobs and processes any remaining jobs in the queue. It returns a promise that resolves once all jobs have been processed, ensuring that no job is left unfinished. After shutdown has been called, any further jobs submitted will immediately reject.
 
 #### Returns
 
