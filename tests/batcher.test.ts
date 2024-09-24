@@ -117,18 +117,41 @@ describe('Batcher', () => {
     expect(mockProcessor.process).toHaveBeenCalledWith([job1, failingJob]);
   });
 
+  test('should handle job errors during shutdown', async () => {
+    const batcher = createBatcher();
+
+    const failingJob: Job = () => {
+      throw new Error('Job failed');
+    };
+
+    const promise1 = batcher.submit(job1);
+    const promise2 = batcher.submit(failingJob);
+
+    await batcher.shutdown();
+
+    await expect(promise1).resolves.toBe(1);
+    await expect(promise2).rejects.toThrow('Job failed');
+
+    expect(mockProcessor.process).toHaveBeenCalledTimes(1);
+    expect(mockProcessor.process).toHaveBeenCalledWith([job1, failingJob]);
+  });
+
   test('should resolve shutdown only after all jobs are processed', async () => {
+    //
     const batcher = createBatcher(2); // Batch size 2
 
+    // 3 jobs, 1 batch should trigger immediately and 1 job should be left waiting
     batcher.submit(job1);
     batcher.submit(job2);
+    batcher.submit(job3);
 
     // Call shutdown and await completion
     await batcher.shutdown();
 
     // Ensure jobs were processed
-    expect(mockProcessor.process).toHaveBeenCalledTimes(1);
-    expect(mockProcessor.process).toHaveBeenCalledWith([job1, job2]);
+    expect(mockProcessor.process).toHaveBeenCalledTimes(2);
+    expect(mockProcessor.process).toHaveBeenNthCalledWith(1, [job1, job2]);
+    expect(mockProcessor.process).toHaveBeenNthCalledWith(2, [job3]);
   });
 
   test('should not accept new jobs after shutdown', async () => {
@@ -143,11 +166,11 @@ describe('Batcher', () => {
     );
 
     // Ensure process was never called since no jobs should be processed
-    expect(mockProcessor.process).toHaveBeenCalledTimes(0);
+    expect(mockProcessor.process).not.toHaveBeenCalled();
   });
 
   test('should handle multiple shutdown calls gracefully', async () => {
-    const batcher = createBatcher(2); // Batch size 2
+    const batcher = createBatcher();
 
     batcher.submit(job1);
     batcher.submit(job2);
@@ -165,11 +188,64 @@ describe('Batcher', () => {
     expect(mockProcessor.process).toHaveBeenCalledTimes(1);
   });
 
-  test('should shutdown when with queued jobs', async () => {
-    const batcher = createBatcher();
+  test('should handle invalid (low) batch size gracefully', () => {
+    // Should batch every job individually
+    const batcher = createBatcher(Number.MIN_VALUE);
+
+    batcher.submit(job1);
+    batcher.submit(job2);
+
+    // Check the processor is called immediately for each job individually
+    expect(mockProcessor.process).toHaveBeenCalledTimes(2);
+    expect(mockProcessor.process).toHaveBeenNthCalledWith(1, [job1]);
+    expect(mockProcessor.process).toHaveBeenNthCalledWith(2, [job2]);
+  });
+
+  test('should handle invalid (high) batch size gracefully', async () => {
+    // Should only batch when time limit reached or shutdown
+    const batcher = createBatcher(Number.MAX_VALUE + 1);
+
+    batcher.submit(job1);
+    batcher.submit(job2);
+
+    // Should not have been called yet
+    expect(mockProcessor.process).not.toHaveBeenCalled();
 
     await batcher.shutdown();
 
+    expect(mockProcessor.process).toHaveBeenCalledTimes(1);
+    expect(mockProcessor.process).toHaveBeenCalledWith([job1, job2]);
+  });
+
+  test('should handle invalid (low) frequency gracefully', () => {
+    // Should be treated as 1ms frequency
+    const batcher = createBatcher(10, Number.MIN_VALUE);
+
+    batcher.submit(job1);
+    batcher.submit(job2);
+
     expect(mockProcessor.process).not.toHaveBeenCalled();
+
+    // Fast forward timers (buffer some ms)
+    jest.advanceTimersByTime(50);
+
+    expect(mockProcessor.process).toHaveBeenCalledTimes(1);
+    expect(mockProcessor.process).toHaveBeenCalledWith([job1, job2]);
+  });
+
+  test('should handle invalid (high) frequency gracefully', () => {
+    // Should be treated as 1ms frequency
+    const batcher = createBatcher(10, Number.MAX_VALUE);
+
+    batcher.submit(job1);
+    batcher.submit(job2);
+
+    expect(mockProcessor.process).not.toHaveBeenCalled();
+
+    // Fast forward timers (buffer some ms)
+    jest.advanceTimersByTime(50);
+
+    expect(mockProcessor.process).toHaveBeenCalledTimes(1);
+    expect(mockProcessor.process).toHaveBeenCalledWith([job1, job2]);
   });
 });

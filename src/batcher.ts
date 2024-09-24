@@ -6,9 +6,9 @@ import type { BatchProcessor, Job, JobResult } from './types';
  * Either `batchSize` or `frequencyMs` must be provided, though both can be specified.
  */
 export type BatcherOptions = {
-  /** Maximum number of jobs to accumulate before processing the batch. */
+  /** Maximum number of jobs to accumulate before processing the batch. (minimum: 1) */
   batchSize?: number;
-  /** Time interval (in milliseconds) after which the batch is processed, even if the size limit is not reached. */
+  /** Time interval (in milliseconds) after which the batch is processed, even if the size limit is not reached. (min: 1, max: 2147483647) */
   frequencyMs?: number;
 } & ({ batchSize: number } | { frequencyMs: number });
 
@@ -38,7 +38,11 @@ export class Batcher<TJob extends Job = Job> {
    */
   constructor(processor: BatchProcessor<TJob>, options: BatcherOptions) {
     this.processor = processor;
-    this.batchSize = options.batchSize;
+    // Ensure minimum batch size of 1
+    this.batchSize =
+      options.batchSize !== undefined
+        ? Math.max(1, options.batchSize)
+        : undefined;
     this.frequencyMs = options.frequencyMs;
 
     this.startTimer();
